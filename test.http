@@ -1,0 +1,8 @@
+### Send POST request with json body
+GET http://localhost:5666/api/0/gfps/users
+Content-Type: application/json
+
+{
+  "username": "gregfeov111",
+  "uuid": "432423422"
+}
