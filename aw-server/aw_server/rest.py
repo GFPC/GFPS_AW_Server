@@ -222,11 +222,11 @@ class EventsResource(Resource):
     # TODO: How to tell expect that it could be a list of events? Until then we can't use validate.
     @api.expect(event)
     @copy_doc(ServerAPI.create_events)
-    def post(self, bucket_id):
+    def post(self, bucket_hash_key):
         data = request.get_json()
         logger.debug(
             "Received post request for event in bucket '{}' and data: {}".format(
-                bucket_id, data
+                bucket_hash_key, data
             )
         )
 
@@ -237,7 +237,7 @@ class EventsResource(Resource):
         else:
             raise BadRequest("Invalid POST data", "")
 
-        event = current_app.api.create_events(bucket_id, events)
+        event = current_app.api.create_events(bucket_hash_key, events)
         return event.to_json_dict() if event else None, 200
 
 
