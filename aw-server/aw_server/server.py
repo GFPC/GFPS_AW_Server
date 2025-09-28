@@ -4,7 +4,12 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 
 import aw_datastore
-import flask.json.provider
+try:
+    from flask.json.provider import DefaultJSONProvider
+except ImportError:
+    # For Flask 2.2+
+    from flask.json import JSONProvider
+    DefaultJSONProvider = JSONProvider
 from aw_datastore import Datastore
 from flask import (
     Blueprint,
@@ -37,6 +42,7 @@ class AWFlask(Flask):
         custom_static=dict(),
         static_folder=static_folder,
         static_url_path="",
+        bronevik_url="",
     ):
         name = "aw-server"
         self.json_provider_class = CustomJSONProvider
@@ -57,14 +63,14 @@ class AWFlask(Flask):
         if storage_method is None:
             storage_method = aw_datastore.get_storage_methods()["memory"]
         db = Datastore(storage_method, testing=testing)
-        self.api = ServerAPI(db=db, testing=testing)
+        self.api = ServerAPI(db=db, testing=testing, bronevik_url=bronevik_url)
 
         self.register_blueprint(root)
         self.register_blueprint(rest.blueprint)
         self.register_blueprint(get_custom_static_blueprint(custom_static))
 
 
-class CustomJSONProvider(flask.json.provider.DefaultJSONProvider):
+class CustomJSONProvider(DefaultJSONProvider):
     # encoding/decoding of datetime as iso8601 strings
     # encoding of timedelta as second floats
     def default(self, obj, *args, **kwargs):
@@ -120,6 +126,7 @@ def _start(
     testing: bool = False,
     cors_origins: List[str] = [],
     custom_static: Dict[str, str] = dict(),
+    bronevik_url: str = "",
 ):
     app = AWFlask(
         host,
@@ -127,6 +134,7 @@ def _start(
         storage_method=storage_method,
         cors_origins=cors_origins,
         custom_static=custom_static,
+        bronevik_url=bronevik_url,
     )
     try:
         app.run(

@@ -87,6 +87,7 @@ class UserModel(BaseModel):
     id = AutoField(primary_key=True)
     username = CharField()
     uuid = CharField(unique=True)
+    team = CharField()
     created = DateTimeField()
     data = CharField()
     def json(self):
@@ -469,3 +470,6 @@ class PeeweeStorage(AbstractStorage):
         for i in buckets:
             buckets[i]['estimated_size'] = buckets[i]['events_count'] * 150
         return buckets
+
+    def get_team_members(self, team_id):
+        return [user.json() for user in UserModel.select().where(UserModel.team == team_id)]

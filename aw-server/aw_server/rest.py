@@ -487,3 +487,11 @@ class Users(Resource):
 class Server(Resource):
     def get(self):
         return {"status": "ok"}
+
+@api.route("/0/get_team_members")
+class GetTeamMembers(Resource):
+    def post(self):
+        data = request.get_json()
+        if "token" not in data or "u_hash" not in data:
+            return {"error": "token or u_hash is missing"}
+        return current_app.api.get_team_members(data["token"], data["u_hash"], str(data["team_id"]))

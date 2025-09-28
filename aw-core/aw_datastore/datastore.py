@@ -90,6 +90,9 @@ class Datastore:
     def get_buckets_for_user(self, user):
         return self.storage_strategy.get_buckets_for_user(user)
 
+    def get_team_members(self, team_id):
+        return self.storage_strategy.get_team_members(team_id)
+
 class Bucket:
     def __init__(self, datastore: Datastore, bucket_hash_key: str) -> None:
         self.logger = logger.getChild("Bucket")

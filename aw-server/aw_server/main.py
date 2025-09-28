@@ -46,6 +46,7 @@ def main():
         storage_method=storage_method,
         cors_origins=settings.cors_origins,
         custom_static=settings.custom_static,
+        bronevik_url=settings.bronevik_url,
     )
 
 
@@ -89,6 +90,11 @@ def parse_settings():
         dest="custom_static",
         help="The custom static directories. Format: watcher_name=path,watcher_name2=path2,...",
     )
+    parser.add_argument(
+        "--bronevik-url",
+        dest="bronevik_url",
+        help="The URL to the Bronevik API",
+    )
     args = parser.parse_args()
     if args.version:
         print(__version__)
@@ -102,6 +108,7 @@ def parse_settings():
     settings.storage = config[configsection]["storage"]
     settings.cors_origins = config[configsection]["cors_origins"]
     settings.custom_static = dict(config[configsection]["custom_static"])
+    settings.bronevik_url = config[configsection]["bronevik_url"]
 
     """ If a argument is not none, override the config value """
     for key, value in vars(args).items():

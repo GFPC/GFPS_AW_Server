@@ -21,6 +21,7 @@ from aw_query import query2
 from aw_transform import heartbeat_merge
 
 from .__about__ import __version__
+from .bronevik_api.api import GetBroveikUserProfile, GetBroveikUserTeam
 from .exceptions import NotFound
 from .settings import Settings
 
@@ -58,11 +59,14 @@ def check_bucket_exists_over_hash(self,bucket_id, uuid):
         raise NotFound("NoSuchBucket", f"There's no bucket with hash key {bucket_hash_key}")
     return True
 class ServerAPI:
-    def __init__(self, db, testing) -> None:
+    def __init__(self, db, testing, bronevik_url) -> None:
         self.db = db
         self.settings = Settings(testing)
         self.testing = testing
         self.last_event = {}  # type: dict
+        self.bronevik_url = bronevik_url
+
+        print("INIT BRONEVIK URL", self.bronevik_url)
 
     def get_info(self) -> Dict[str, Any]:
         """Get server info"""
@@ -419,3 +423,18 @@ class ServerAPI:
         print(buckets)
 
         return buckets
+
+    def get_team_members(self, token, u_hash, team_id):
+
+        requesting_profile = GetBroveikUserProfile(self.bronevik_url, token, u_hash)
+        #print(json.dumps(requesting_profile, indent=4))
+        if requesting_profile["status"] != "success":
+            return {"status": "error", "message": "unauthorized access"}
+        team = GetBroveikUserTeam(self.bronevik_url, token, u_hash)
+        print(json.dumps(team, indent=4))
+
+
+        return {
+            "status": "success",
+            "members": self.db.get_team_members(team_id),
+        }

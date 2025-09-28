@@ -119,3 +119,7 @@ class AbstractStorage(metaclass=ABCMeta):
     @abstractmethod
     def get_buckets_for_user(self, user):
         raise NotImplementedError
+
+    @abstractmethod
+    def get_team_members(self, team_id):
+        pass
