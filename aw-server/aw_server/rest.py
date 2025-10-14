@@ -52,6 +52,13 @@ def host_header_check(f):
 
     return decorator
 
+def missing_fields(required,data):
+    missing = []
+    for key in required:
+        if key not in data:
+            missing.append(key)
+    return missing
+
 
 blueprint = Blueprint("api", __name__, url_prefix="/api")
 api = Api(blueprint, doc="/", decorators=[host_header_check])
@@ -142,7 +149,14 @@ class BucketsResource(Resource):
         data = request.get_json()
         user = data["user"]
         return current_app.api.get_buckets_for_user(user)
-
+@api.route("/1/manager/buckets/")
+class BusketsResource(Resource):
+    def post(self):
+        data = request.get_json()
+        required = ["users", "token", "u_hash"]
+        if not all(key in data for key in required):
+            return {"status": "error", "message": "Missing required fields"}
+        return current_app.api.get_buckets_v2(data["users"], data["token"], data["u_hash"])
 
 @api.route("/0/buckets/<string:bucket_id>")
 class BucketResource(Resource):
@@ -240,6 +254,28 @@ class EventsResource(Resource):
         event = current_app.api.create_events(bucket_hash_key, events)
         return event.to_json_dict() if event else None, 200
 
+@api.route("/1/manager/buckets/events")
+class EventsResource(Resource):
+    def post(self):
+        data = request.get_json()
+        required = ["buckets", "token", "u_hash"]
+        if not all(key in data for key in required):
+            return {"status": "error", "message": "Missing required fields"}
+        limit = int(data["limit"]) if "limit" in data else -1
+        start = iso8601.parse_date(data["start"]) if "start" in data else None
+        end = iso8601.parse_date(data["end"]) if "end" in data else None
+
+        return current_app.api.get_events_for_buckets(data["buckets"], limit=limit, start=start, end=end, token=data["token"], u_hash=data["u_hash"])
+
+@api.route("/1/manager/buckets/events/count")
+class EventCountResource(Resource):
+    def post(self):
+        data = request.get_json()
+        required = ["buckets", "token", "u_hash"]
+        if not all(key in data for key in required):
+            return {"status": "error", "message": "Missing required fields"}
+
+        return current_app.api.get_eventcount_for_buckets(data["buckets"], data["token"], data["u_hash"])
 
 @api.route("/0/buckets/<string:bucket_id>/events/count")
 class EventCountResource(Resource):
@@ -488,10 +524,11 @@ class Server(Resource):
     def get(self):
         return {"status": "ok"}
 
-@api.route("/0/get_team_members")
+@api.route("/1/manager/workers")
 class GetTeamMembers(Resource):
     def post(self):
         data = request.get_json()
         if "token" not in data or "u_hash" not in data:
-            return {"error": "token or u_hash is missing"}
-        return current_app.api.get_team_members(data["token"], data["u_hash"], str(data["team_id"]))
+            return {"error": f"fields {missing_fields(['token', 'u_hash'], data)} are missing"}
+
+        return current_app.api.get_workers(data["token"], data["u_hash"], str(data.get("team_id", "")))

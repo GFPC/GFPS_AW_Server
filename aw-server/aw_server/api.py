@@ -17,6 +17,7 @@ import iso8601
 from aw_core.dirs import get_data_dir
 from aw_core.log import get_log_file_path
 from aw_core.models import Event
+from aw_datastore.datastore import Bucket, BucketModel
 from aw_query import query2
 from aw_transform import heartbeat_merge
 
@@ -49,15 +50,18 @@ def check_bucket_exists(f):
 
     return g
 
-def check_bucket_exists_over_hash(self,bucket_id, uuid):
+
+def check_bucket_exists_over_hash(self, bucket_id, uuid):
     user_id = self.db.get_user_by_uuid(uuid)
-    if user_id == {}:
+    if user_id == {} or user_id == None:
         raise NotFound("NoSuchUser", f"There's no user with uuid {uuid}")
     user_id = user_id["user"]["id"]
     bucket_hash_key = hashlib.md5((str(bucket_id) + str(user_id)).encode("utf-8")).hexdigest()
     if bucket_hash_key not in self.db.buckets():
         raise NotFound("NoSuchBucket", f"There's no bucket with hash key {bucket_hash_key}")
     return True
+
+
 class ServerAPI:
     def __init__(self, db, testing, bronevik_url) -> None:
         self.db = db
@@ -71,10 +75,10 @@ class ServerAPI:
     def get_info(self) -> Dict[str, Any]:
         """Get server info"""
         payload = {
-            "hostname": gethostname(),
+            "name": "GFP TIM Server",
             "version": __version__,
             "testing": self.testing,
-            "device_id": get_device_id(),
+            "author": "GFP"
         }
         return payload
 
@@ -83,7 +87,6 @@ class ServerAPI:
         logger.debug("Received get request for buckets")
         buckets = self.db.buckets()
         for b in buckets:
-            # TODO: Move this code to aw-core?
             last_events = self.db[b].get(limit=1)
             if len(last_events) > 0:
                 last_event = last_events[0]
@@ -152,14 +155,14 @@ class ServerAPI:
             self.import_bucket(bucket)
 
     def create_bucket(
-        self,
-        bucket_id: str,
-        event_type: str,
-        client: str,
-        hostname: str,
-        created: Optional[datetime] = None,
-        data: Optional[Dict[str, Any]] = None,
-        user: Optional[int] = None
+            self,
+            bucket_id: str,
+            event_type: str,
+            client: str,
+            hostname: str,
+            created: Optional[datetime] = None,
+            data: Optional[Dict[str, Any]] = None,
+            user: Optional[int] = None
     ) -> bool:
         """
         Create a bucket.
@@ -169,11 +172,12 @@ class ServerAPI:
 
         Returns True if successful, otherwise false if a bucket with the given ID already existed.
         """
+        print("CREATE_BUCKET", bucket_id, event_type, client, hostname, created, data, user)
         user_id = self.db.get_user_by_uuid(user)
-        if user_id == {}:
+        if user_id == {} or user_id == None:
             return False
         user_id = user_id["user"]["id"]
-        bucket_hash_key = hashlib.md5((str(bucket_id)+str(user_id)).encode("utf-8")).hexdigest()
+        bucket_hash_key = hashlib.md5((str(bucket_id) + str(user_id)).encode("utf-8")).hexdigest()
         if bucket_hash_key in self.db.buckets():
             return False
 
@@ -200,12 +204,12 @@ class ServerAPI:
 
     @check_bucket_exists
     def update_bucket(
-        self,
-        bucket_hash_key: str,
-        event_type: Optional[str] = None,
-        client: Optional[str] = None,
-        hostname: Optional[str] = None,
-        data: Optional[Dict[str, Any]] = None,
+            self,
+            bucket_hash_key: str,
+            event_type: Optional[str] = None,
+            client: Optional[str] = None,
+            hostname: Optional[str] = None,
+            data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Update bucket metadata"""
         self.db.update_bucket(
@@ -226,9 +230,9 @@ class ServerAPI:
 
     @check_bucket_exists
     def get_event(
-        self,
-        bucket_id: str,
-        event_id: int,
+            self,
+            bucket_id: str,
+            event_id: int,
     ) -> Optional[Event]:
         """Get a single event from a bucket"""
         logger.debug(
@@ -239,11 +243,11 @@ class ServerAPI:
 
     @check_bucket_exists
     def get_events(
-        self,
-        bucket_hash_key: str,
-        limit: int = -1,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+            self,
+            bucket_hash_key: str,
+            limit: int = -1,
+            start: Optional[datetime] = None,
+            end: Optional[datetime] = None,
     ) -> List[Event]:
         """Get events from a bucket"""
         logger.debug(f"Received get request for events in bucket '{bucket_hash_key}'")
@@ -263,10 +267,10 @@ class ServerAPI:
 
     @check_bucket_exists
     def get_eventcount(
-        self,
-        bucket_id: str,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+            self,
+            bucket_id: str,
+            start: Optional[datetime] = None,
+            end: Optional[datetime] = None,
     ) -> int:
         """Get eventcount from a bucket"""
         logger.debug(f"Received get request for eventcount in bucket '{bucket_id}'")
@@ -277,7 +281,7 @@ class ServerAPI:
         """Delete a single event from a bucket"""
         return self.db[bucket_id].delete(event_id)
 
-    #@check_bucket_exists
+    # @check_bucket_exists
     def heartbeat(self, bucket_id: str, heartbeat: Event, pulsetime: float, uuid: str) -> Event:
         check_bucket_exists_over_hash(self, bucket_id, uuid)
         """
@@ -319,18 +323,16 @@ class ServerAPI:
         # Solution: This could be solved if we were able to replace arbitrary events.
         #           That way we could double check that the event has been applied
         #           and if it hasn't we simply replace it with the updated counterpart.
-
         user_id = self.db.get_user_by_uuid(uuid)["user"]["id"]
         bucket_hash_key = hashlib.md5((str(bucket_id) + str(user_id)).encode("utf-8")).hexdigest()
 
-        last_event = None
-        if bucket_hash_key not in self.last_event:
-            last_events = self.db[bucket_hash_key].get(limit=1)
-            if len(last_events) > 0:
-                last_event = last_events[0]
-        else:
-            last_event = self.last_event[bucket_hash_key]
+        # Always resolve the last event at-or-before this heartbeat.timestamp to handle out-of-order arrivals
+        last_event = self.db[bucket_hash_key].get_last_before_or_equal(heartbeat.timestamp)
         if last_event:
+            # Normalize pulsetime to non-negative
+            if pulsetime is None or pulsetime < 0:
+                pulsetime = 0
+
             if last_event.data == heartbeat.data:
                 merged = heartbeat_merge(last_event, heartbeat, pulsetime)
                 if merged is not None:
@@ -342,7 +344,8 @@ class ServerAPI:
                     )
                     self.last_event[bucket_hash_key] = merged
                     try:
-                        self.db[bucket_hash_key].replace_last(merged)
+                        # Update the exact row that was merged (identified by its ID)
+                        self.db[bucket_hash_key].replace(last_event.id, merged)
                     except:
                         logger.error("Could not replace last event in bucket: {}".format(bucket_hash_key))
                     return merged
@@ -364,6 +367,7 @@ class ServerAPI:
                     bucket_hash_key
                 )
             )
+        # Insert as new event (duration expected 0); future heartbeats will extend it
         self.db[bucket_hash_key].insert(heartbeat)
         self.last_event[bucket_hash_key] = heartbeat
         return heartbeat
@@ -372,8 +376,8 @@ class ServerAPI:
         result = []
         for timeperiod in timeperiods:
             period = timeperiod.split("/")[
-                :2
-            ]  # iso8601 timeperiods are separated by a slash
+                     :2
+                     ]  # iso8601 timeperiods are separated by a slash
             starttime = iso8601.parse_date(period[0])
             endtime = iso8601.parse_date(period[1])
             query = "".join(query)
@@ -398,7 +402,7 @@ class ServerAPI:
         self.settings[key] = value
         return value
 
-    def get_user_by_uuid(self,uuid):
+    def get_user_by_uuid(self, uuid):
         return self.db.get_user_by_uuid(uuid)
 
     def update_user(self, uuid, data):
@@ -420,21 +424,106 @@ class ServerAPI:
                 last_updated = last_event.timestamp + last_event.duration
                 buckets[b]["last_updated"] = last_updated.isoformat()
             buckets[b]['user'] = buckets[b]['user'].json()['id']
-        print(buckets)
 
         return buckets
 
-    def get_team_members(self, token, u_hash, team_id):
-
-        requesting_profile = GetBroveikUserProfile(self.bronevik_url, token, u_hash)
-        #print(json.dumps(requesting_profile, indent=4))
-        if requesting_profile["status"] != "success":
+    def get_buckets_v2(self, users, token, u_hash):
+        if not self.bronevik_auth_logic(token, u_hash):
             return {"status": "error", "message": "unauthorized access"}
-        team = GetBroveikUserTeam(self.bronevik_url, token, u_hash)
-        print(json.dumps(team, indent=4))
+        logger.debug("Received get request for buckets v2")
 
+        # TODO : Add check: users id in team
+
+        if users == "all":
+            # TODO : receive team list
+            users = [1]
+            for i in range(len(users)):
+                users[i] = int(users[i])
+            buckets = self.db.get_buckets_for_users(users)
+        elif type(users) == list:
+            for i in range(len(users)):
+                users[i] = int(users[i])
+            buckets = self.db.get_buckets_for_users(users)
+        else:
+            return {"status": "error", "message": "users must be a list or 'all'"}
+        new_struct = {}
+        for i in users:
+            new_struct[i] = {}
+            for b in buckets:
+                if not type(buckets[b]['user']) == int:
+                    buckets[b]['user'] = buckets[b]['user'].json()['id']
+                if buckets[b]['user'] == i:
+                    new_struct[i][b] = buckets[b]
+                    new_struct[i][b].pop('user')
+                    new_struct[i][b].pop('hash_key')
+        return {"status": "success", "data": {"buckets": new_struct}}
+
+    def get_events_for_buckets(self, buckets, limit, start, end, token, u_hash):
+        if not self.bronevik_auth_logic(token, u_hash):
+            return {"status": "error", "message": "unauthorized access"}
+        logger.debug("Received get request for get_events_for_buckets(v2)")
+
+        # checking
+        if not type(buckets) == list:
+            return {"status": "error", "message": "buckets must be a list"}
+        else:
+            for b in buckets:
+                if not type(b) == str:
+                    return {"status": "error", "message": "buckets must be a list of strings", "errorIn": b}
+
+        # Map hash keys to Bucket objects via Datastore __getitem__
+        buckets: List[Bucket] = [self.db[b] for b in buckets if b in self.db.buckets()]
+        events = self.db.get_events_for_buckets(buckets, limit, start, end)
+        return {"status": "success", "data":{"events": events}}
+    def get_eventcount_for_buckets(self, buckets, token, u_hash):
+        if not self.bronevik_auth_logic(token, u_hash):
+            return {"status": "error", "message": "unauthorized access"}
+        logger.debug("Received get request for get_events_for_buckets(v2)")
+
+        # checking
+        if not type(buckets) == list:
+            return {"status": "error", "message": "buckets must be a list"}
+        else:
+            for b in buckets:
+                if not type(b) == str:
+                    return {"status": "error", "message": "buckets must be a list of strings", "errorIn": b}
+
+        # Map hash keys to Bucket objects via Datastore __getitem__
+        buckets: List[Bucket] = [self.db[b] for b in buckets if b in self.db.buckets()]
+        out = {}
+        for i in buckets:
+            out[str(i.bucket_hash_key)] = len([j.to_json_str() for j in i.get()])
+        return {"status": "success", "data":out}
+
+    def get_workers(self, token, u_hash, team_id):
+        if not self.bronevik_auth_logic(token, u_hash):
+            return {"status": "error", "message": "unauthorized access"}
+
+        teams = [team_id]
+        if team_id == "":
+            teams = GetBroveikUserTeam(self.bronevik_url, token, u_hash)
+            teams = teams.get("data", {}).get("car", {})
+            if teams == {}:
+                return {"status": "error", "message": "the user was not found in any group"}
+            teams = list(teams.keys())
 
         return {
             "status": "success",
-            "members": self.db.get_team_members(team_id),
+            "data": {
+                "workers": self.db.get_workers(teams[0]),
+            }
         }
+
+    def bronevik_auth_logic(self, token, u_hash):
+        # Check 24h auth cache in MySQL
+        if self.db.is_user_authorized(token, u_hash):
+            authorized = True
+        else:
+            authorized = False
+        if not authorized:
+            requesting_profile = GetBroveikUserProfile(self.bronevik_url, token, u_hash)
+            if requesting_profile.get("status") != "success":
+                return False
+            # Cache successful auth for 24h
+            self.db.set_user_authorized(token, u_hash, ttl_hours=24)
+        return True

@@ -4,12 +4,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 
 import aw_datastore
-try:
-    from flask.json.provider import DefaultJSONProvider
-except ImportError:
-    # For Flask 2.2+
-    from flask.json import JSONProvider
-    DefaultJSONProvider = JSONProvider
+import flask.json.provider
 from aw_datastore import Datastore
 from flask import (
     Blueprint,
@@ -37,12 +32,12 @@ class AWFlask(Flask):
         self,
         host: str,
         testing: bool,
-        storage_method=None,
         cors_origins=[],
         custom_static=dict(),
         static_folder=static_folder,
         static_url_path="",
         bronevik_url="",
+        mysql_kwargs=None,
     ):
         name = "aw-server"
         self.json_provider_class = CustomJSONProvider
@@ -60,17 +55,34 @@ class AWFlask(Flask):
             _config_cors(cors_origins, testing)
 
         # Initialize datastore and API
-        if storage_method is None:
-            storage_method = aw_datastore.get_storage_methods()["memory"]
-        db = Datastore(storage_method, testing=testing)
+        # Pass MySQL parameters directly to Datastore
+        storage_kwargs = {"testing": testing}
+        if mysql_kwargs:
+            storage_kwargs.update(mysql_kwargs)
+        
+        db = Datastore(**storage_kwargs)
+        
+        # Initialize database tables
+        self._initialize_database(db)
+        
         self.api = ServerAPI(db=db, testing=testing, bronevik_url=bronevik_url)
 
         self.register_blueprint(root)
         self.register_blueprint(rest.blueprint)
         self.register_blueprint(get_custom_static_blueprint(custom_static))
 
+    def _initialize_database(self, db):
+        """Initialize database tables and ensure they exist"""
+        try:
+            # Tables are already created in Datastore constructor
+            logger.info("MySQL database tables initialized successfully")
+                
+        except Exception as e:
+            logger.error(f"Failed to initialize database tables: {e}")
+            # Don't raise the exception, let the server start anyway
 
-class CustomJSONProvider(DefaultJSONProvider):
+
+class CustomJSONProvider(flask.json.provider.DefaultJSONProvider):
     # encoding/decoding of datetime as iso8601 strings
     # encoding of timedelta as second floats
     def default(self, obj, *args, **kwargs):
@@ -120,21 +132,21 @@ def _config_cors(cors_origins: List[str], testing: bool):
 
 # Only to be called from aw_server.main function!
 def _start(
-    storage_method,
     host: str,
     port: int,
     testing: bool = False,
     cors_origins: List[str] = [],
     custom_static: Dict[str, str] = dict(),
     bronevik_url: str = "",
+    mysql_kwargs: Dict = None,
 ):
     app = AWFlask(
         host,
         testing=testing,
-        storage_method=storage_method,
         cors_origins=cors_origins,
         custom_static=custom_static,
         bronevik_url=bronevik_url,
+        mysql_kwargs=mysql_kwargs,
     )
     try:
         app.run(

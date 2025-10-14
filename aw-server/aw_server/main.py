@@ -2,7 +2,6 @@ import logging
 import sys
 
 from aw_core.log import setup_logging
-from aw_datastore import get_storage_methods
 
 from . import __version__
 from .config import config
@@ -14,7 +13,7 @@ logger = logging.getLogger(__name__)
 def main():
     """Called from the executable and __main__.py"""
 
-    settings, storage_method = parse_settings()
+    settings = parse_settings()
 
     # FIXME: The LogResource API endpoint relies on the log being in JSON format
     # at the path specified by aw_core.log.get_log_file_path(). We probably want
@@ -43,10 +42,10 @@ def main():
         host=settings.host,
         port=settings.port,
         testing=settings.testing,
-        storage_method=storage_method,
         cors_origins=settings.cors_origins,
         custom_static=settings.custom_static,
         bronevik_url=settings.bronevik_url,
+        mysql_kwargs=settings.mysql_kwargs,
     )
 
 
@@ -109,6 +108,22 @@ def parse_settings():
     settings.cors_origins = config[configsection]["cors_origins"]
     settings.custom_static = dict(config[configsection]["custom_static"])
     settings.bronevik_url = config[configsection]["bronevik_url"]
+    
+    # MySQL settings with defaults
+    if "mysql" in config[configsection]:
+        mysql_config = config[configsection]["mysql"]
+        settings.mysql_host = mysql_config.get("host", "localhost")
+        settings.mysql_port = int(mysql_config.get("port", 3306))
+        settings.mysql_user = mysql_config.get("user", "root")
+        settings.mysql_password = mysql_config.get("password", "")
+        settings.mysql_database = mysql_config.get("database", "activitywatch")
+    else:
+        # Default MySQL settings
+        settings.mysql_host = "localhost"
+        settings.mysql_port = 3306
+        settings.mysql_user = "root"
+        settings.mysql_password = ""
+        settings.mysql_database = "activitywatch"
 
     """ If a argument is not none, override the config value """
     for key, value in vars(args).items():
@@ -120,10 +135,16 @@ def parse_settings():
 
     settings.cors_origins = [o for o in settings.cors_origins.split(",") if o]
 
-    storage_methods = get_storage_methods()
-    storage_method = storage_methods[settings.storage]
+    # Always use MySQL settings (since we removed the abstraction)
+    settings.mysql_kwargs = {
+        "host": settings.mysql_host,
+        "port": settings.mysql_port,
+        "user": settings.mysql_user,
+        "password": settings.mysql_password,
+        "database": settings.mysql_database
+    }
 
-    return settings, storage_method
+    return settings
 
 
 def parse_str_to_dict(str_value):
