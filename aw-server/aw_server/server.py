@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from datetime import datetime, timedelta
@@ -10,7 +11,7 @@ from flask import (
     Blueprint,
     Flask,
     current_app,
-    send_from_directory,
+    send_from_directory, request,
 )
 from flask_cors import CORS
 
@@ -148,6 +149,7 @@ def _start(
         bronevik_url=bronevik_url,
         mysql_kwargs=mysql_kwargs,
     )
+
     try:
         app.run(
             debug=testing,

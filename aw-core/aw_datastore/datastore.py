@@ -343,14 +343,21 @@ class Datastore:
             return None
 
     def update_user(self, uuid, data):
+        print(uuid,data)
         try:
             user = UserModel.get(UserModel.uuid == uuid)
-            user.data = json.dumps(data)
+            if "team" in data:
+                user.team = data["team"]
+            if "username" in data:
+                user.username = data["username"]
+            if "data" in data:
+                user.data = json.dumps(data)
             user.save()
         except UserModel.DoesNotExist:
             pass
 
     def create_user(self, data):
+        print(data)
         user = UserModel.create(
            uuid=data["uuid"], username=data["username"], team=data.get("team"), data=json.dumps(data.get("data", {}))
         )

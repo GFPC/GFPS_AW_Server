@@ -8,6 +8,7 @@ from typing import Dict
 
 import iso8601
 from colorama import Fore, init
+from flask_cors import cross_origin
 
 from aw_core import schema
 from aw_core.models import Event
@@ -68,9 +69,6 @@ event = api.schema_model("Event", schema.get_json_schema("event"))
 bucket = api.schema_model("Bucket", schema.get_json_schema("bucket"))
 buckets_export = api.schema_model("Export", schema.get_json_schema("export"))
 
-# TODO: Construct all the models from JSONSchema?
-#       A downside to contructing from JSONSchema: flask-restplus does not have marshalling support
-
 info = api.model(
     "Info",
     {
@@ -124,6 +122,16 @@ def copy_doc(api_method):
 
     return decorator
 
+def v1_preprocess_headers():
+    if request.headers.get("Content-Type") == "application/json":
+        data = request.get_json()
+    elif request.headers.get("Content-Type") == "application/x-www-form-urlencoded":
+        data = request.form.to_dict()
+        parsed_data = json.loads(data["data"])
+        data = {**data, **parsed_data}
+    else:
+        return {"status": "error", "message": "Unsupported Content-Type"}
+    return data
 
 # SERVER INFO
 
@@ -138,7 +146,6 @@ class InfoResource(Resource):
 
 # BUCKETS
 
-#maked, replace old method
 @api.route("/0/buckets/")
 class BucketsResource(Resource):
     # TODO: Add response marshalling/validation
@@ -149,10 +156,14 @@ class BucketsResource(Resource):
         data = request.get_json()
         user = data["user"]
         return current_app.api.get_buckets_for_user(user)
+
 @api.route("/1/manager/buckets/")
+
 class BusketsResource(Resource):
     def post(self):
-        data = request.get_json()
+        data = v1_preprocess_headers()
+        if data.get("status") == "error" and data.get("message") == "Unsupported Content-Type":
+            return {"status": "error", "message": "Unsupported Content-Type"}
         required = ["users", "token", "u_hash"]
         if not all(key in data for key in required):
             return {"status": "error", "message": "Missing required fields"}
@@ -257,7 +268,9 @@ class EventsResource(Resource):
 @api.route("/1/manager/buckets/events")
 class EventsResource(Resource):
     def post(self):
-        data = request.get_json()
+        data = v1_preprocess_headers()
+        if data.get("status") == "error" and data.get("message") == "Unsupported Content-Type":
+            return {"status": "error", "message": "Unsupported Content-Type"}
         required = ["buckets", "token", "u_hash"]
         if not all(key in data for key in required):
             return {"status": "error", "message": "Missing required fields"}
@@ -270,7 +283,9 @@ class EventsResource(Resource):
 @api.route("/1/manager/buckets/events/count")
 class EventCountResource(Resource):
     def post(self):
-        data = request.get_json()
+        data = v1_preprocess_headers()
+        if data.get("status") == "error" and data.get("message") == "Unsupported Content-Type":
+            return {"status": "error", "message": "Unsupported Content-Type"}
         required = ["buckets", "token", "u_hash"]
         if not all(key in data for key in required):
             return {"status": "error", "message": "Missing required fields"}
@@ -527,7 +542,9 @@ class Server(Resource):
 @api.route("/1/manager/workers")
 class GetTeamMembers(Resource):
     def post(self):
-        data = request.get_json()
+        data = v1_preprocess_headers()
+        if data.get("status") == "error" and data.get("message") == "Unsupported Content-Type":
+            return {"status": "error", "message": "Unsupported Content-Type"}
         if "token" not in data or "u_hash" not in data:
             return {"error": f"fields {missing_fields(['token', 'u_hash'], data)} are missing"}
 
