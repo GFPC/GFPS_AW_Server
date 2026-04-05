@@ -362,15 +362,17 @@ manager_user_update = api.model(
 claim_invitation_body = api.model(
     "ClaimInvitation",
     {
-        "token": fields.String(required=True, description="Invitation token"),
+        "token": fields.String(
+            required=True,
+            description=(
+                "Secret invitation string (Base58 from manager). Single-use; not a user identifier."
+            ),
+        ),
         "uuid": fields.String(
             required=True,
-            description="Stable client id (v4); used everywhere for identification — not username",
-        ),
-        "username": fields.String(
             description=(
-                "Optional display label only (ActivityWatch field); not used for authentication. "
-                "Omit or empty → filled from invitation FIO or email local-part."
+                "Stable per-device / per-install id (e.g. UUID v4). User identity for all later "
+                "GFP APIs (PUT /api/0/user, buckets, etc.)."
             ),
         ),
     },
@@ -1182,8 +1184,9 @@ class ClaimInvitationResource(Resource):
         tags=["gfp"],
         summary="Complete invitation after install",
         description=(
-            "Public (no Bronevik). Creates user from invitation preload, binds uuid, "
-            "marks invitation installed. Call once per client."
+            "Public (no Bronevik). Body: **token** + **uuid** only. Creates user from invitation, "
+            "binds uuid; does **not** set `username` (empty until `PUT /api/0/user` or manager update). "
+            "Call once per client."
         ),
     )
     @api.expect(claim_invitation_body, validate=False)
@@ -1194,8 +1197,4 @@ class ClaimInvitationResource(Resource):
         for k in ("token", "uuid"):
             if k not in data:
                 return {"status": "error", "message": f"missing {k}"}, 400
-        return current_app.api.claim_invitation(
-            data["token"],
-            data["uuid"],
-            data.get("username") or "",
-        )
+        return current_app.api.claim_invitation(data["token"], data["uuid"])

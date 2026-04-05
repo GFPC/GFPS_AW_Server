@@ -94,7 +94,6 @@ def test_manager_create_list_and_claim_employee(http_client, bronevik_cached_ses
         json={
             "token": invite_token,
             "uuid": employee_uuid,
-            "username": "from-client",
         },
     )
     assert r_claim.status_code == 200
@@ -103,7 +102,7 @@ def test_manager_create_list_and_claim_employee(http_client, bronevik_cached_ses
     assert "user" in body
     assert body["user"]["uuid"] == employee_uuid
     assert body["user"]["email"] == email
-    assert body["user"]["username"] == "from-client"
+    assert body["user"]["username"] == ""
     assert body["user"]["firstName"] == "Иван"
     assert body["user"]["lastName"] == "Тестов"
     assert body["user"]["middleName"] == "Петрович"
@@ -132,7 +131,7 @@ def test_manager_changes_employee_role_with_team_id(http_client, bronevik_cached
         http_client,
         "post",
         CLAIM,
-        json={"token": invite_token, "uuid": str(uuid.uuid4()), "username": "emp-role"},
+        json={"token": invite_token, "uuid": str(uuid.uuid4())},
     )
     assert r_claim.status_code == 200
     user = r_claim.get_json()["user"]
@@ -221,6 +220,36 @@ def test_claim_twice_second_call_fails(http_client, bronevik_cached_session):
     err = r2.get_json()
     assert err["status"] == "error"
     assert err.get("error") == "invitation_already_used"
+
+
+def test_claim_username_in_body_is_ignored(http_client, bronevik_cached_session):
+    """Claim does not set username; legacy clients may still send the key."""
+    token_b, u_hash_b = bronevik_cached_session
+    suffix = uuid.uuid4().hex[:12]
+    r = _json(
+        http_client,
+        "post",
+        MANAGER_INVITATIONS,
+        json={
+            "token": token_b,
+            "u_hash": u_hash_b,
+            "invitations": [{"email": f"ignore-un-{suffix}@example.test", "role_id": "r1"}],
+        },
+    )
+    assert r.status_code == 200
+    invite_token = r.get_json()["data"]["invitations"][0]["token"]
+    r_claim = _json(
+        http_client,
+        "post",
+        CLAIM,
+        json={
+            "token": invite_token,
+            "uuid": str(uuid.uuid4()),
+            "username": "this-must-not-be-stored",
+        },
+    )
+    assert r_claim.status_code == 200
+    assert r_claim.get_json()["user"]["username"] == ""
 
 
 def test_manager_invitations_list_minimal_body(http_client, bronevik_cached_session):

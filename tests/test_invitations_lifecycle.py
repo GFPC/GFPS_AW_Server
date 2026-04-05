@@ -97,7 +97,7 @@ def test_two_teams_same_email_claim_then_delete_reopens_superseded(
         http_client,
         "post",
         CLAIM,
-        json={"token": invite_token, "uuid": str(uuid.uuid4()), "username": "emp-dual"},
+        json={"token": invite_token, "uuid": str(uuid.uuid4())},
     )
     assert r_claim.status_code == 200
     claim_body = r_claim.get_json()
@@ -179,7 +179,7 @@ def test_delete_user_single_team_claimed_invitation_becomes_revoked(
         http_client,
         "post",
         CLAIM,
-        json={"token": invite_token, "uuid": str(uuid.uuid4()), "username": "emp-one"},
+        json={"token": invite_token, "uuid": str(uuid.uuid4())},
     )
     assert r_claim.status_code == 200
     user_id = r_claim.get_json()["user"]["id"]
@@ -246,7 +246,7 @@ def test_two_teams_change_email_before_delete_still_reopens_superseded(
         http_client,
         "post",
         CLAIM,
-        json={"token": invite_token, "uuid": str(uuid.uuid4()), "username": "emp-move"},
+        json={"token": invite_token, "uuid": str(uuid.uuid4())},
     )
     assert r_claim.status_code == 200
     user_id = r_claim.get_json()["user"]["id"]

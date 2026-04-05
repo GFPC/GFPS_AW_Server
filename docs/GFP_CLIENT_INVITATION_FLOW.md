@@ -131,13 +131,12 @@
 **`POST /api/0/gfps/invitations/claim`**  
 Bronevik **не** нужен; вызывается с машины, где ставится клиент.
 
-Тело:
+Тело — **только** `token` и `uuid` (поле `username` в claim **не используется** и не должно передаваться):
 
 ```json
 {
   "token": "BASE58_SECRET_FROM_MANAGER",
-  "uuid": "stable-per-device-uuid-v4",
-  "username": "optional-display-or-login"
+  "uuid": "stable-per-device-uuid-v4"
 }
 ```
 
@@ -145,7 +144,15 @@ Bronevik **не** нужен; вызывается с машины, где ст�
 |------|-------------|--------|
 | `token` | да | Строка Base58, как выдали при создании |
 | `uuid` | да | **Стабильный** идентификатор установки/пользователя на этом устройстве (например один и тот же UUID в `settings` после первого запуска) |
-| `username` | нет | Только **отображаемая подпись** (поле модели AW); **не** для аутентификации. Идентификация — всегда **`uuid`**. Если не передать — сервер заполнит из ФИО инвайта или локальной части email |
+
+### Поле `username` в модели пользователя
+
+В таблице **`usermodel`** по-прежнему есть колонка **`username`** (совместимость с ActivityWatch). **При claim она не заполняется** — остаётся пустой строкой. Задать или изменить подпись можно позже:
+
+- сотрудник: **`PUT /api/0/user`** с тем же **`uuid`** и полем **`username`** в теле;
+- менеджер: **`PUT /api/1/manager/users/<id>`** с Bronevik и **`username`** в теле.
+
+Идентификация пользователя в API — всегда **`uuid`** (и числовой **`id`** в ответах).
 
 **Успех (HTTP 200):**
 
@@ -155,7 +162,7 @@ Bronevik **не** нужен; вызывается с машины, где ст�
   "user": {
     "id": 42,
     "uuid": "...",
-    "username": "...",
+    "username": "",
     "firstName": "...",
     "lastName": "...",
     "middleName": "...",
@@ -214,7 +221,7 @@ Bronevik **не** нужен; вызывается с машины, где ст�
 
 1. При первом запуске сгенерировать и **навсегда сохранить** `uuid` (файл настроек, Keychain и т.д.).
 2. Показать поле ввода **инвайт-токена** (или глубокую ссылку, из которой вы парсите токен).
-3. Отправить **`POST .../claim`** с `token`, `uuid`, опционально `username`.
+3. Отправить **`POST .../claim`** с `token` и `uuid` (без `username`; его задают позже через `PUT /api/0/user` при необходимости).
 4. При `success` — записать `user`, перейти в основной режим работы.
 5. Периодически (например раз в час) вызывать **`PUT /api/0/user`** с телом `{"uuid": "<uuid>", "client_version": "<version>"}` — см. §6.1.
 
@@ -239,7 +246,7 @@ sequenceDiagram
   M->>API: POST /api/1/manager/invitations (Bronevik + invitations[])
   API-->>M: token Base58 (сохранить и отдать сотруднику)
   M->>E: вручную / почта / ссылка с token
-  E->>API: POST /api/0/gfps/invitations/claim (token, uuid, username?)
+  E->>API: POST /api/0/gfps/invitations/claim (token, uuid)
   API-->>E: user + invitation installed
 ```
 

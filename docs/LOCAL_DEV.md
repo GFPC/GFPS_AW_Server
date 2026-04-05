@@ -64,7 +64,7 @@ python scripts/dev_issue_invitation_token.py -o invitation.token
 curl -s -X POST "http://127.0.0.1:5777/api/0/gfps/invitations/claim" ^
   -H "Content-Type: application/json" ^
   -H "Host: 127.0.0.1:5777" ^
-  -d "{\"token\":\"<BASE58_FROM_FILE>\",\"uuid\":\"00000000-0000-4000-8000-000000000001\",\"username\":\"dev\"}"
+  -d "{\"token\":\"<BASE58_FROM_FILE>\",\"uuid\":\"00000000-0000-4000-8000-000000000001\"}"
 ```
 
 (В PowerShell удобнее `Invoke-RestMethod` или одинарные кавычки для JSON в bash.)

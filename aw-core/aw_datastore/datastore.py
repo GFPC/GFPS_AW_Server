@@ -878,7 +878,6 @@ class Datastore:
         return q.exists()
 
     def update_user(self, uuid, data):
-        print(uuid,data)
         try:
             user = UserModel.get(UserModel.uuid == uuid)
             if "username" in data:
@@ -906,7 +905,6 @@ class Datastore:
         return None
 
     def create_user(self, data):
-        print(data)
         pn = person_names_for_create(data)
         em = normalize_email_for_uniqueness(data.get("email"))
         if em is not None and self._email_is_taken(em, None):
@@ -1206,9 +1204,11 @@ class Datastore:
         self,
         token: str,
         uuid: str,
-        username: str,
     ) -> Optional[Dict[str, Any]]:
-        """Create user from invitation preload, mark installed, link FK."""
+        """Create user from invitation preload, mark installed, link FK.
+
+        Does not set ``username``; use ``PUT /api/0/user`` or manager ``PUT`` to set it later.
+        """
         th = invitation_token_hash_from_client(token)
         if not th:
             return None
@@ -1223,13 +1223,6 @@ class Datastore:
         fn = inv.first_name
         ln = inv.last_name
         mn = inv.middle_name
-        uname = (username or "").strip()
-        if not uname:
-            parts = [fn, mn, ln]
-            uname = " ".join(str(p).strip() for p in parts if p and str(p).strip())
-        if not uname:
-            em = (inv.email or "").strip()
-            uname = em.split("@")[0] if em else "user"
         tid = (inv.team_id or "").strip()
         inv_email_norm = normalize_email_for_uniqueness(inv.email)
         if inv_email_norm is not None and self._email_is_taken(inv_email_norm, None):
@@ -1238,7 +1231,7 @@ class Datastore:
         try:
             user = UserModel.create(
                 uuid=uuid,
-                username=uname,
+                username="",
                 email=inv_email_norm if inv_email_norm else None,
                 first_name=fn,
                 last_name=ln,

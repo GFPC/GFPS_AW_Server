@@ -651,8 +651,8 @@ class ServerAPI:
             return {"status": "error", "message": "user not found"}
         return {"status": "success", "data": {"deleted": True, "user_id": user_id}}
 
-    def claim_invitation(self, token: str, uuid: str, username: str) -> Dict[str, Any]:
-        result = self.db.claim_invitation(token, uuid, username)
+    def claim_invitation(self, token: str, uuid: str) -> Dict[str, Any]:
+        result = self.db.claim_invitation(token, uuid)
         if result is None:
             return {"status": "error", "message": "invitation not found"}
         if "error" in result:
