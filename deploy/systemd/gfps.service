@@ -20,7 +20,8 @@ WorkingDirectory=/opt/gfps-aw-server
 Environment=PYTHONUNBUFFERED=1
 # Optional: same variables as .env (GFPS_*)
 EnvironmentFile=-/opt/gfps-aw-server/.env
-# После pip install -e ./aw-core -e ./aw-server в этом venv:
+# Исполняемый файл из venv (консольный скрипт pip). НЕ каталог ./aw-server/ в репозитории!
+# После: pip install -e ./aw-core -e ./aw-server
 ExecStart=/opt/gfps-aw-server/venv/bin/aw-server
 Restart=on-failure
 RestartSec=5

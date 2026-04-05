@@ -363,9 +363,15 @@ claim_invitation_body = api.model(
     "ClaimInvitation",
     {
         "token": fields.String(required=True, description="Invitation token"),
-        "uuid": fields.String(required=True, description="Client-generated stable id"),
+        "uuid": fields.String(
+            required=True,
+            description="Stable client id (v4); used everywhere for identification — not username",
+        ),
         "username": fields.String(
-            description="Preferred login/display handle; if omitted, built from invitation names or email local-part"
+            description=(
+                "Optional display label only (ActivityWatch field); not used for authentication. "
+                "Omit or empty → filled from invitation FIO or email local-part."
+            ),
         ),
     },
 )

@@ -47,6 +47,7 @@ pip install --no-cache-dir -e ./aw-server --config-settings editable_mode=compat
 Пример юнита: [deploy/systemd/gfps.service](../deploy/systemd/gfps.service).
 
 - Правьте **`User`**, **`Group`**, **`WorkingDirectory`**, **`ExecStart`**, путь к **`EnvironmentFile=-/path/to/.env`**.
+- **`ExecStart`** должен указывать на **`…/venv/bin/aw-server`** (скрипт из venv). Путь **`…/aw-server`** без `venv/bin/` — это **каталог** исходников; systemd выдаст **status=203/EXEC**.
 - После правок: `sudo systemctl daemon-reload`, `sudo systemctl enable --now gfps.service`.
 - Логи: `journalctl -u gfps.service -f`.
 
