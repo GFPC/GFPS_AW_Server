@@ -27,7 +27,7 @@
 
 ## 3. systemd
 
-Пример юнита: [deploy/systemd/gfps-aw-server.service](../deploy/systemd/gfps-aw-server.service).
+Пример юнита: [deploy/systemd/gfps-aw-server.service](../deploy/systemd/gfps.service).
 
 - Правьте **`User`**, **`Group`**, **`WorkingDirectory`**, **`ExecStart`**, путь к **`EnvironmentFile=-/path/to/.env`**.
 - После правок: `sudo systemctl daemon-reload`, `sudo systemctl enable --now gfps-aw-server`.
