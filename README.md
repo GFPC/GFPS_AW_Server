@@ -2,6 +2,8 @@
 
 Бэкенд HTTP API и хранилище событий для клиентов ActivityWatch / GFP. Репозиторий рассчитан на **развёртывание как отдельный сервис** (не полный десктопный бандл ActivityWatch).
 
+**Не ставьте сервер командой `pip install aw-server` с PyPI** — там другой пакет (оригинальный ActivityWatch). Нужен клон этого репозитория и установка **`pip install -e ./aw-core`** и **`pip install -e ./aw-server`** (на Linux при проблемах с `aw_datastore` см. [docs/DEPLOY.md](docs/DEPLOY.md) и `scripts/install_editable_compat.sh`).
+
 ## Быстрый старт
 
 ```bash

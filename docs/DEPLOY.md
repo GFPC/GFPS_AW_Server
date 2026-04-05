@@ -2,16 +2,33 @@
 
 ## 1. Код и зависимости
 
-- Клонировать репозиторий в каталог деплоя (например `/opt/gfps-aw-server`).
-- Создать виртуальное окружение и установить зависимости:
+### Важно: не путать с PyPI
 
-  ```bash
-  python3 -m venv venv
-  ./venv/bin/pip install -U pip
-  ./venv/bin/pip install -r requirements-all.txt
-  ```
+Команда **`pip install aw-server`** (без пути к каталогу) тянет пакет **с PyPI** — это **upstream ActivityWatch**, не этот GFP-форк.
 
-- Убедиться, что `aw-core` и `aw-server` установлены в editable-режиме, если так настроен ваш `requirements-all.txt` (обычно `pip install -e ./aw-core -e ./aw-server` из корня).
+Нужно ставить **только из клонированного репозитория**, в режиме **editable** (`-e`), указывая пути **`./aw-core`** и **`./aw-server`**.
+
+### Установка (рекомендуется на всех окружениях)
+
+На Linux с **setuptools 80+** обычный `pip install -e ./aw-core` иногда даёт `ImportError: Datastore ... (unknown location)` — используйте **режим совместимости** editable:
+
+```bash
+cd /path/to/GFPS_AW_Server
+python3 -m venv venv
+source venv/bin/activate   # или: . venv/bin/activate
+pip install -U pip wheel
+pip uninstall -y aw-core aw-server 2>/dev/null || true
+pip install --no-cache-dir -e ./aw-core --config-settings editable_mode=compat
+pip install --no-cache-dir -e ./aw-server --config-settings editable_mode=compat
+```
+
+Из корня репозитория можно так: `bash scripts/install_editable_compat.sh` (с активированным venv).
+
+Альтернатива при той же ошибке: **`pip install 'setuptools>=61,<70'`** и снова **`pip install -r requirements-all.txt`** (там `-e ./aw-core` и `-e ./aw-server`).
+
+### 1.1 Ошибка `cannot import name 'Datastore' from 'aw_datastore' (unknown location)`
+
+См. выше: **editable_mode=compat** или откат **setuptools** ниже 80, затем переустановка `-e` из **локальных** `./aw-core` и `./aw-server`.
 
 ## 2. Конфигурация
 
@@ -27,13 +44,13 @@
 
 ## 3. systemd
 
-Пример юнита: [deploy/systemd/gfps-aw-server.service](../deploy/systemd/gfps.service).
+Пример юнита: [deploy/systemd/gfps.service](../deploy/systemd/gfps.service).
 
 - Правьте **`User`**, **`Group`**, **`WorkingDirectory`**, **`ExecStart`**, путь к **`EnvironmentFile=-/path/to/.env`**.
-- После правок: `sudo systemctl daemon-reload`, `sudo systemctl enable --now gfps-aw-server`.
-- Логи: `journalctl -u gfps-aw-server -f`.
+- После правок: `sudo systemctl daemon-reload`, `sudo systemctl enable --now gfps.service`.
+- Логи: `journalctl -u gfps.service -f`.
 
-Точка входа: консольная команда **`aw-server`** (ставится из `aw-server` пакета при `pip install -e ./aw-server`) или эквивалент **`python -m aw_server`** из активированного venv.
+Точка входа: консольная команда **`aw-server`** (появляется в venv после **`pip install -e ./aw-server`** из **этого** клона, не с PyPI) или **`python -m aw_server`**.
 
 ## 4. База данных
 

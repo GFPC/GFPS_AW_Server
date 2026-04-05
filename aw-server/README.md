@@ -4,7 +4,7 @@ HTTP API and storage for ActivityWatch-compatible clients. This tree is used as 
 
 ## Install
 
-From the repository root (virtualenv recommended):
+From the repository root (virtualenv recommended). **Do not `pip install aw-server` from PyPI** — that is upstream ActivityWatch. Use editable installs from this repo only:
 
 ```bash
 pip install -r requirements-all.txt
