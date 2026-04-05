@@ -301,7 +301,10 @@ invitation_row_out = api.model(
     {
         "id": fields.Integer(description="Invitation row id"),
         "token": fields.String(
-            description="Secret installer token (Base58); null in list responses — only returned when creating",
+            description=(
+                "Secret installer token (Base58). Returned for authenticated manager list/create; "
+                "null only for legacy rows created before server stored installer_token."
+            ),
         ),
         "team_id": fields.String(),
         "email": fields.String(),

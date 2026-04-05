@@ -3,6 +3,9 @@ Installer invitation secrets: 16 random bytes → Base58 for employees, SHA-256 
 
 Legacy rows stored plaintext `token` in MySQL; migration sets
 `token_hash = sha256(utf8(old_token)).hexdigest()` so old links keep working.
+
+New invitations also persist Base58 in `installer_token` so manager list API can
+re-show the secret (SaaS); rows with only `token_hash` keep `installer_token` null.
 """
 
 from __future__ import annotations

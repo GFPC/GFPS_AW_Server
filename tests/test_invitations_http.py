@@ -83,7 +83,7 @@ def test_manager_create_list_and_claim_employee(http_client, bronevik_cached_ses
     assert listed["status"] == "success"
     rows_same = [r for r in listed["data"]["invitations"] if r["email"] == email]
     assert len(rows_same) == 1
-    assert rows_same[0].get("token") is None
+    assert rows_same[0].get("token") == invite_token
 
     # --- employee accepts invitation (public claim) ---
     employee_uuid = str(uuid.uuid4())

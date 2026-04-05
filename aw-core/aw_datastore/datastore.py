@@ -298,6 +298,21 @@ def auto_migrate(host: str, port: int, user: str, password: str, database: str) 
                 )
             )
 
+    try:
+        info_inv4 = db.execute_sql("DESCRIBE invitationmodel")
+        icols4 = {row[0] for row in info_inv4}
+    except Exception:
+        icols4 = set()
+    if icols4 and "installer_token" not in icols4:
+        with db.atomic():
+            migrate(
+                migrator.add_column(
+                    "invitationmodel",
+                    "installer_token",
+                    CharField(null=True, max_length=128),
+                )
+            )
+
     # user_team_role + drop legacy usermodel.team / role_id
     try:
         ucols_final = {row[0] for row in db.execute_sql("DESCRIBE usermodel")}
@@ -529,6 +544,8 @@ class InvitationModel(BaseModel):
 
     id = AutoField(primary_key=True)
     token_hash = CharField(unique=True, max_length=64, index=True)
+    # Base58 secret for manager UI / list API (hash-only rows from legacy migration have null).
+    installer_token = CharField(null=True, max_length=128)
     team_id = CharField(null=True, index=True)
     email = CharField()
     role_id = CharField(null=True)
@@ -568,6 +585,9 @@ class InvitationModel(BaseModel):
                 created_str = c.isoformat()
         uid = self.user_id
         display = getattr(self, "_display_token", None)
+        if display is None:
+            it = getattr(self, "installer_token", None)
+            display = (it or "").strip() or None
         st = (self.status or "pending").strip() or "pending"
         superseded_at_str = None
         if self.superseded_at:
@@ -1163,6 +1183,7 @@ class Datastore:
                     break
             inv = InvitationModel.create(
                 token_hash=th,
+                installer_token=display,
                 team_id=team_id,
                 email=email,
                 role_id=item.get("role_id"),
@@ -1175,7 +1196,6 @@ class Datastore:
                 installed_at=None,
                 user=None,
             )
-            inv._display_token = display  # noqa: SLF001 — only for create response JSON
             out.append(inv.json())
         return out
 
