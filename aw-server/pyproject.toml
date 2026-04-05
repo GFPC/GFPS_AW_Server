@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aw-server"
+version = "0.13.1"
+description = "Server for ActivityWatch"
+license = { text = "MPL-2.0" }
+requires-python = ">=3.8"
+dependencies = [
+    "flask>=2.2,<3",
+    "flask-restx>=1.0.3",
+    "flask-cors",
+    "werkzeug>=2.3.3,<3",
+    "requests",
+    "pymysql>=1.1",
+    "cryptography>=41.0.0",
+    "python-dotenv>=1.0.0",
+    "importlib-metadata>=4; python_version < \"3.10\"",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy",
+    "pytest>=7.3,<9",
+    "pytest-flask",
+    "pytest-benchmark",
+    "pytest-cov",
+    "types-Werkzeug",
+    "types-pkg-resources",
+    "types-Flask",
+    "black>=23.3,<24",
+    "aw-client>=0.5.8,<0.6",
+]
+
+[project.scripts]
+aw-server = "aw_server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aw_server*"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "--cov-report=term --cov-report=xml --cov-report=html --cov=aw_server"
+python_files = ["*.py"]
+
+[tool.ruff]
+ignore = ["E402", "E501"]

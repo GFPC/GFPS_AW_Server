@@ -1,0 +1,15 @@
+# Install aw-core first (editable). From repo root:
+#   pip install -r aw-core/requirements.txt && pip install -e ./aw-core --no-deps
+#   pip install -r aw-server/requirements.txt && pip install -e ./aw-server --no-deps
+
+-e ../aw-core
+
+flask==2.3.3
+flask-cors==4.0.0
+flask-restx==1.2.0
+werkzeug==2.3.7
+requests==2.31.0
+pymysql==1.1.1
+cryptography>=41.0.0
+python-dotenv>=1.0.0
+importlib-metadata==6.8.0; python_version < "3.10"

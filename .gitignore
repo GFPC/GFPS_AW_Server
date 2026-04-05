@@ -1,0 +1,50 @@
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+pip-wheel-metadata/
+
+# Virtualenv
+venv/
+.venv/
+env/
+
+# Env and secrets (use .env.example as template)
+.env
+.env.local
+.env.*.local
+
+# Local dev artifacts
+invitation.token
+*.log
+logs/
+
+# Tests / coverage
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+coverage_html/
+
+# MySQL / local DB dumps
+*.sql
+*.dump
+
+# Optional tooling
+.mypy_cache/
+.tox/

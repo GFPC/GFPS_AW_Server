@@ -1,0 +1,20 @@
+# Runtime (frozen; install from repo root: pip install -r aw-core/requirements.txt && pip install -e ./aw-core --no-deps)
+base58==2.1.1
+attrs==24.2.0
+deprecation==2.1.0
+iso8601==2.1.0
+jsonschema==4.23.0
+jsonschema-specifications==2023.12.1
+packaging==24.1
+peewee==3.17.6
+platformdirs==3.10.0
+referencing==0.35.1
+rfc3339-validator==0.1.4
+rpds-py==0.20.0
+six==1.16.0
+strict-rfc3339==0.7
+timeslot==0.1.2
+tomlkit==0.13.2
+importlib-resources==6.4.5; python_version < "3.10"
+zipp==3.20.2; python_version < "3.10"
+pkgutil-resolve-name==1.3.10; python_version < "3.10"

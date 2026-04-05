@@ -1,0 +1,3 @@
+# Full GFP stack from repository root (editable installs, deps from each pyproject.toml)
+-e ./aw-core
+-e ./aw-server

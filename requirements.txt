@@ -1,0 +1,3 @@
+# No workspace-wide runtime deps. Use:
+#   pip install -r requirements-all.txt
+# or install aw-core / aw-server separately (see their READMEs).

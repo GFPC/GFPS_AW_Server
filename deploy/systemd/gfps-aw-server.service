@@ -1,0 +1,29 @@
+# Install: sudo cp gfps-aw-server.service /etc/systemd/system/ && sudo systemctl daemon-reload
+# Enable:   sudo systemctl enable --now gfps-aw-server
+# Logs:     journalctl -u gfps-aw-server -f
+# Edit User, paths, and After=mysql.service if MySQL is local.
+
+[Unit]
+Description=GFP TIM / ActivityWatch-compatible HTTP API
+Documentation=file:///opt/gfps-aw-server/README.md
+Documentation=file:///opt/gfps-aw-server/docs/DEPLOY.md
+After=network-online.target
+Wants=network-online.target
+# If MySQL runs on the same host:
+# After=network-online.target mysql.service
+
+[Service]
+Type=simple
+User=gfps
+Group=gfps
+WorkingDirectory=/opt/gfps-aw-server
+Environment=PYTHONUNBUFFERED=1
+# Optional: same variables as .env (GFPS_*)
+EnvironmentFile=-/opt/gfps-aw-server/.env
+# После pip install -e ./aw-core -e ./aw-server в этом venv:
+ExecStart=/opt/gfps-aw-server/venv/bin/aw-server
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

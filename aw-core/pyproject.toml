@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aw-core"
+version = "0.5.17"
+description = "Core library for ActivityWatch"
+readme = "README.md"
+license = { text = "MPL-2.0" }
+requires-python = ">=3.8"
+dependencies = [
+    "base58>=2.0,<3",
+    "jsonschema>=4.3,<5",
+    "peewee>=3,<4",
+    "platformdirs==3.10",
+    "iso8601>=2.0,<3",
+    "rfc3339-validator>=0.1.4,<0.2",
+    "strict-rfc3339>=0.7,<0.8",
+    "tomlkit",
+    "deprecation",
+    "timeslot",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy",
+    "ruff",
+    "pytest",
+    "pytest-cov",
+]
+
+[project.scripts]
+aw-cli = "aw_cli.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aw_core*", "aw_datastore*", "aw_transform*", "aw_query*", "aw_cli*"]
+
+[tool.ruff]
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B", "UP"]
+ignore = ["E402", "E501", "B905"]
