@@ -118,6 +118,22 @@ def person_names_for_create(data: Dict[str, Any]) -> Dict[str, Optional[str]]:
     }
 
 
+def invitation_data_to_storage(value: Any) -> Optional[str]:
+    """Serialize optional JSON payload for ``InvitationModel.data`` (TEXT). ``None`` clears."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+        try:
+            parsed = json.loads(s)
+            return json.dumps(parsed, ensure_ascii=False)
+        except Exception:
+            return json.dumps(value, ensure_ascii=False)
+    return json.dumps(value, ensure_ascii=False)
+
+
 from aw_core.models import Event
 from playhouse.migrate import MySQLMigrator, migrate
 from playhouse.mysql_ext import JSONField, MySQLDatabase
@@ -310,6 +326,21 @@ def auto_migrate(host: str, port: int, user: str, password: str, database: str) 
                     "invitationmodel",
                     "installer_token",
                     CharField(null=True, max_length=128),
+                )
+            )
+
+    try:
+        info_inv5 = db.execute_sql("DESCRIBE invitationmodel")
+        icols5 = {row[0] for row in info_inv5}
+    except Exception:
+        icols5 = set()
+    if icols5 and "data" not in icols5:
+        with db.atomic():
+            migrate(
+                migrator.add_column(
+                    "invitationmodel",
+                    "data",
+                    TextField(null=True),
                 )
             )
 
@@ -559,6 +590,7 @@ class InvitationModel(BaseModel):
     installed_at = DateTimeField(null=True)
     user = ForeignKeyField(UserModel, field="id", null=True, backref="invitations")
     created = DateTimeField(default=datetime.now)
+    data = TextField(null=True)
 
     def json(self) -> Dict[str, Any]:
         installed_at_str = None
@@ -640,6 +672,7 @@ class InvitationModel(BaseModel):
             "user_id": uid,
             "user": user_payload,
             "created": created_str,
+            "data": safe_json_loads(self.data) if self.data else {},
         }
 
 
@@ -1117,7 +1150,8 @@ class Datastore:
         items: List[Dict[str, Any]],
         team_id: Optional[str],
     ) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
-        """Each item: email (required), role_id, firstName/lastName/middleName (or snake_case).
+        """Each item: email (required), role_id, firstName/lastName/middleName (or snake_case),
+        optional ``data`` (JSON object — opaque for SaaS).
 
         Returns an error dict (and creates nothing) when:
 
@@ -1181,6 +1215,9 @@ class Datastore:
                 _raw, display, th = generate_invitation_secret()
                 if InvitationModel.select().where(InvitationModel.token_hash == th).count() == 0:
                     break
+            row_data = None
+            if "data" in item:
+                row_data = invitation_data_to_storage(item.get("data"))
             inv = InvitationModel.create(
                 token_hash=th,
                 installer_token=display,
@@ -1195,6 +1232,7 @@ class Datastore:
                 installed=False,
                 installed_at=None,
                 user=None,
+                data=row_data,
             )
             out.append(inv.json())
         return out
@@ -1209,6 +1247,16 @@ class Datastore:
         except Exception:
             invs = list(q)
         return [inv.json() for inv in invs]
+
+    def update_invitation_data(self, invitation_id: int, data_value: Any) -> Optional[Dict[str, Any]]:
+        """Replace ``InvitationModel.data``; ``data_value`` ``None`` clears stored JSON."""
+        try:
+            inv = InvitationModel.get(InvitationModel.id == invitation_id)
+        except InvitationModel.DoesNotExist:
+            return None
+        inv.data = invitation_data_to_storage(data_value)
+        inv.save()
+        return inv.json()
 
     def get_invitation_by_token(self, token: str) -> Optional[Dict[str, Any]]:
         th = invitation_token_hash_from_client(token)

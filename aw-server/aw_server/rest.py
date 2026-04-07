@@ -275,6 +275,9 @@ invitation_row_in = api.model(
         "firstName": fields.String(description="Preload given name (snake_case first_name also accepted)"),
         "lastName": fields.String(description="Preload family name"),
         "middleName": fields.String(description="Preload middle / patronymic"),
+        "data": fields.Raw(
+            description="Optional JSON object (e.g. email-sent flags); stored with the invitation row",
+        ),
     },
 )
 
@@ -331,6 +334,21 @@ invitation_row_out = api.model(
             ),
         ),
         "created": fields.String(description="ISO8601 UTC"),
+        "data": fields.Raw(
+            description="Arbitrary JSON object from DB; {} if unset (same shape as user data field)",
+        ),
+    },
+)
+
+manager_invitation_put = api.inherit(
+    "ManagerInvitationPut",
+    v1_bronevik_auth,
+    {
+        "data": fields.Raw(
+            description=(
+                "Required key. JSON object to store, or null to clear. Replaces entire invitation data."
+            ),
+        ),
     },
 )
 
@@ -1104,7 +1122,9 @@ class ManagerInvitationsV1Resource(Resource):
             "Bronevik auth (`token`, `u_hash` in JSON). "
             "If `invitations` is omitted or an empty array, returns the invitation list "
             "(optional `team_id` filter). "
-            "If `invitations` is a non-empty array, creates a batch; optional `team_id` applies to new rows."
+            "If `invitations` is a non-empty array, creates a batch; optional `team_id` applies to new rows; "
+            "each row may include optional `data` (opaque JSON). "
+            "Use `PUT /api/1/manager/invitations/<id>` to replace `data` later."
         ),
     )
     @api.expect(v1_invitations_post, validate=False)
@@ -1131,6 +1151,43 @@ class ManagerInvitationsV1Resource(Resource):
             data["token"],
             data["u_hash"],
         )
+
+
+@api.route("/1/manager/invitations/<int:invitation_id>")
+class ManagerInvitationByIdV1Resource(Resource):
+    @api.doc(
+        "manager_invitation_put",
+        tags=["v1-manager"],
+        summary="Update invitation data JSON",
+        description=(
+            "Bronevik auth (`token`, `u_hash` in JSON). "
+            "Replaces the whole `data` blob on the invitation row (opaque JSON for SaaS, e.g. email sent). "
+            "Body must include key `data`; use `null` to clear."
+        ),
+    )
+    @api.expect(manager_invitation_put, validate=False)
+    @api.response(200, "Success")
+    @api.response(400, "Bad request", v1_error)
+    @api.response(404, "Invitation not found", v1_error)
+    def put(self, invitation_id: int):
+        data = v1_preprocess_headers()
+        if data.get("status") == "error" and data.get("message") == "Unsupported Content-Type":
+            return {"status": "error", "message": "Unsupported Content-Type"}, 400
+        if "token" not in data or "u_hash" not in data:
+            return {"status": "error", "message": "Missing token or u_hash"}, 400
+        body = {k: data[k] for k in data if k not in ("token", "u_hash")}
+        out = current_app.api.manager_update_invitation(
+            invitation_id,
+            body,
+            data["token"],
+            data["u_hash"],
+        )
+        if out.get("status") == "error":
+            if out.get("error") == "not_found":
+                return out, 404
+            if out.get("error") == "validation":
+                return out, 400
+        return out
 
 
 @api.route("/1/manager/users/<int:user_id>")

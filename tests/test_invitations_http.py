@@ -308,6 +308,94 @@ def test_invitation_create_accepts_snake_case_aliases(http_client, bronevik_cach
     assert row["middleName"] == "Alias"
 
 
+def test_invitation_data_create_list_put_clear(http_client, bronevik_cached_session):
+    token_b, u_hash_b = bronevik_cached_session
+    suffix = uuid.uuid4().hex[:12]
+    email = f"data-{suffix}@example.test"
+    team_id = f"team-{suffix}"
+    r = _json(
+        http_client,
+        "post",
+        MANAGER_INVITATIONS,
+        json={
+            "token": token_b,
+            "u_hash": u_hash_b,
+            "team_id": team_id,
+            "invitations": [
+                {
+                    "email": email,
+                    "role_id": "r1",
+                    "data": {"emailSent": False, "draft": True},
+                }
+            ],
+        },
+    )
+    assert r.status_code == 200
+    row = r.get_json()["data"]["invitations"][0]
+    inv_id = row["id"]
+    assert row["data"] == {"emailSent": False, "draft": True}
+
+    r_list = _json(
+        http_client,
+        "post",
+        MANAGER_INVITATIONS,
+        json={"token": token_b, "u_hash": u_hash_b, "team_id": team_id},
+    )
+    assert r_list.status_code == 200
+    listed = [x for x in r_list.get_json()["data"]["invitations"] if x["email"] == email][0]
+    assert listed["data"] == {"emailSent": False, "draft": True}
+
+    r_put = _json(
+        http_client,
+        "put",
+        f"/api/1/manager/invitations/{inv_id}",
+        json={
+            "token": token_b,
+            "u_hash": u_hash_b,
+            "data": {"emailSent": True},
+        },
+    )
+    assert r_put.status_code == 200
+    assert r_put.get_json()["data"]["invitation"]["data"] == {"emailSent": True}
+
+    r_clear = _json(
+        http_client,
+        "put",
+        f"/api/1/manager/invitations/{inv_id}",
+        json={
+            "token": token_b,
+            "u_hash": u_hash_b,
+            "data": None,
+        },
+    )
+    assert r_clear.status_code == 200
+    assert r_clear.get_json()["data"]["invitation"]["data"] == {}
+
+
+def test_invitation_put_requires_data_key(http_client, bronevik_cached_session):
+    token_b, u_hash_b = bronevik_cached_session
+    r = _json(
+        http_client,
+        "put",
+        "/api/1/manager/invitations/999999999",
+        json={"token": token_b, "u_hash": u_hash_b},
+    )
+    assert r.status_code == 400
+    assert r.get_json().get("error") == "validation"
+
+
+def test_invitation_put_not_found(http_client, bronevik_cached_session):
+    token_b, u_hash_b = bronevik_cached_session
+    r = _json(
+        http_client,
+        "put",
+        "/api/1/manager/invitations/999999999",
+        json={"token": token_b, "u_hash": u_hash_b, "data": {}},
+    )
+    assert r.status_code == 404
+    assert r.get_json().get("error") == "not_found"
+
+
 def test_claim_unknown_token(http_client):
     r = _json(
         http_client,
