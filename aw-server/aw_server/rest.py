@@ -352,6 +352,17 @@ manager_invitation_put = api.inherit(
     },
 )
 
+manager_invitations_batch_put = api.model(
+    "ManagerInvitationsBatchPut",
+    {
+        "token": fields.String(required=True),
+        "u_hash": fields.String(required=True),
+        "42": fields.Raw(
+            description='Example: per-id object {"data": {...}}; use string keys "43", "44" for more rows',
+        ),
+    },
+)
+
 manager_user_update = api.model(
     "ManagerUserUpdate",
     {
@@ -1124,7 +1135,8 @@ class ManagerInvitationsV1Resource(Resource):
             "(optional `team_id` filter). "
             "If `invitations` is a non-empty array, creates a batch; optional `team_id` applies to new rows; "
             "each row may include optional `data` (opaque JSON). "
-            "Use `PUT /api/1/manager/invitations/<id>` to replace `data` later."
+            "Use `PUT /api/1/manager/invitations/<id>` for one row, or `PUT` on this same path "
+            "to update `data` for many ids in one request (see batch PUT)."
         ),
     )
     @api.expect(v1_invitations_post, validate=False)
@@ -1151,6 +1163,37 @@ class ManagerInvitationsV1Resource(Resource):
             data["token"],
             data["u_hash"],
         )
+
+    @api.doc(
+        "manager_invitations_batch_put",
+        tags=["v1-manager"],
+        summary="Batch update invitation data JSON",
+        description=(
+            "Bronevik auth (`token`, `u_hash` in JSON). "
+            "Replace `data` for multiple invitation rows in one request. "
+            "Besides `token` and `u_hash`, each **key must be a numeric invitation id** (string in JSON), "
+            "and the value must be `{\"data\": ... }` (same as single-id PUT). "
+            "Optional `team_id` is ignored. "
+            "Response: `data.results[]` with per-id `{id, invitation}` or `{id, error: not_found}`."
+        ),
+    )
+    @api.expect(manager_invitations_batch_put, validate=False)
+    @api.response(200, "Success (per-id results may include not_found)")
+    @api.response(400, "Bad request", v1_error)
+    def put(self):
+        data = v1_preprocess_headers()
+        if data.get("status") == "error" and data.get("message") == "Unsupported Content-Type":
+            return {"status": "error", "message": "Unsupported Content-Type"}, 400
+        if "token" not in data or "u_hash" not in data:
+            return {"status": "error", "message": "token and u_hash required"}, 400
+        out = current_app.api.manager_update_invitations_data_batch(
+            data,
+            data["token"],
+            data["u_hash"],
+        )
+        if out.get("status") == "error" and out.get("error") == "validation":
+            return out, 400
+        return out
 
 
 @api.route("/1/manager/invitations/<int:invitation_id>")

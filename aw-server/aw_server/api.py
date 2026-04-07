@@ -57,6 +57,37 @@ def check_bucket_exists_over_hash(self, bucket_id, uuid):
     return True
 
 
+def _parse_invitation_data_batch_body(
+    body: Dict[str, Any],
+) -> Tuple[Optional[Dict[int, Any]], Optional[str]]:
+    """
+    Batch PUT body: token, u_hash, optional team_id (ignored), and per-id payloads
+    {\"<id>\": {\"data\": ...}}. IDs are JSON object keys as strings (e.g. \"42\").
+    """
+    reserved = {"token", "u_hash", "team_id"}
+    updates: Dict[int, Any] = {}
+    for k, v in body.items():
+        if k in reserved:
+            continue
+        try:
+            iid = int(str(k).strip())
+        except (TypeError, ValueError):
+            return None, f"invalid invitation id key: {k!r}"
+        if iid <= 0:
+            return None, f"invalid invitation id key: {k!r}"
+        if not isinstance(v, dict):
+            return None, f"value for invitation id {iid} must be an object with key data"
+        if "data" not in v:
+            return None, f"missing data for invitation id {iid}"
+        updates[iid] = v["data"]
+    if not updates:
+        return (
+            None,
+            'no invitation updates: add keys like "42": {"data": {...}} besides token and u_hash',
+        )
+    return updates, None
+
+
 class ServerAPI:
     def __init__(self, db, testing, bronevik_url) -> None:
         self.db = db
@@ -607,6 +638,30 @@ class ServerAPI:
                 "error": "not_found",
             }
         return {"status": "success", "data": {"invitation": row}}
+
+    def manager_update_invitations_data_batch(
+        self,
+        body: Dict[str, Any],
+        token: str,
+        u_hash: str,
+    ) -> Dict[str, Any]:
+        if not self.bronevik_auth_logic(token, u_hash):
+            return {"status": "error", "message": "unauthorized access"}
+        updates, err = _parse_invitation_data_batch_body(body)
+        if err:
+            return {
+                "status": "error",
+                "message": err,
+                "error": "validation",
+            }
+        results: List[Dict[str, Any]] = []
+        for iid, data_val in sorted(updates.items()):
+            row = self.db.update_invitation_data(iid, data_val)
+            if row is None:
+                results.append({"id": iid, "error": "not_found"})
+            else:
+                results.append({"id": iid, "invitation": row})
+        return {"status": "success", "data": {"results": results}}
 
     def manager_update_user(
         self,

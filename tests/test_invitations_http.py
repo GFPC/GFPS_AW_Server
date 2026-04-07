@@ -396,6 +396,100 @@ def test_invitation_put_not_found(http_client, bronevik_cached_session):
     assert r.get_json().get("error") == "not_found"
 
 
+def test_invitation_batch_put_data(http_client, bronevik_cached_session):
+    token_b, u_hash_b = bronevik_cached_session
+    suffix = uuid.uuid4().hex[:12]
+    team_id = f"team-{suffix}"
+    create = _json(
+        http_client,
+        "post",
+        MANAGER_INVITATIONS,
+        json={
+            "token": token_b,
+            "u_hash": u_hash_b,
+            "team_id": team_id,
+            "invitations": [
+                {"email": f"a-{suffix}@example.test", "role_id": "r1"},
+                {"email": f"b-{suffix}@example.test", "role_id": "r1"},
+            ],
+        },
+    )
+    assert create.status_code == 200
+    invs = create.get_json()["data"]["invitations"]
+    id_a, id_b = invs[0]["id"], invs[1]["id"]
+
+    r = _json(
+        http_client,
+        "put",
+        MANAGER_INVITATIONS,
+        json={
+            "token": token_b,
+            "u_hash": u_hash_b,
+            str(id_a): {"data": {"sent": True}},
+            str(id_b): {"data": {"sent": False}},
+        },
+    )
+    assert r.status_code == 200
+    results = r.get_json()["data"]["results"]
+    assert len(results) == 2
+    by_id = {x["id"]: x for x in results}
+    assert by_id[id_a]["invitation"]["data"] == {"sent": True}
+    assert by_id[id_b]["invitation"]["data"] == {"sent": False}
+
+
+def test_invitation_batch_put_partial_not_found(http_client, bronevik_cached_session):
+    token_b, u_hash_b = bronevik_cached_session
+    suffix = uuid.uuid4().hex[:12]
+    r = _json(
+        http_client,
+        "post",
+        MANAGER_INVITATIONS,
+        json={
+            "token": token_b,
+            "u_hash": u_hash_b,
+            "invitations": [{"email": f"one-{suffix}@example.test", "role_id": "r1"}],
+        },
+    )
+    oid = r.get_json()["data"]["invitations"][0]["id"]
+    r2 = _json(
+        http_client,
+        "put",
+        MANAGER_INVITATIONS,
+        json={
+            "token": token_b,
+            "u_hash": u_hash_b,
+            str(oid): {"data": {"a": 1}},
+            "999999999": {"data": {}},
+        },
+    )
+    assert r2.status_code == 200
+    parts = {x["id"]: x for x in r2.get_json()["data"]["results"]}
+    assert "invitation" in parts[oid]
+    assert parts[999999999]["error"] == "not_found"
+
+
+def test_invitation_batch_put_validation(http_client, bronevik_cached_session):
+    token_b, u_hash_b = bronevik_cached_session
+    r = _json(
+        http_client,
+        "put",
+        MANAGER_INVITATIONS,
+        json={"token": token_b, "u_hash": u_hash_b},
+    )
+    assert r.status_code == 400
+    r2 = _json(
+        http_client,
+        "put",
+        MANAGER_INVITATIONS,
+        json={
+            "token": token_b,
+            "u_hash": u_hash_b,
+            "not-a-number": {"data": {}},
+        },
+    )
+    assert r2.status_code == 400
+
+
 def test_claim_unknown_token(http_client):
     r = _json(
         http_client,

@@ -78,6 +78,8 @@
 
 - **PUT** `/api/1/manager/invitations/<id>` (Bronevik: `token`, `u_hash` в JSON) — замена **целиком** поля **`data`** у строки приглашения. В теле обязателен ключ **`data`** (JSON-объект или `null` для очистки). Ответ: `{"status":"success","data":{"invitation":{...}}}`. Нет строки с таким `id` — `404`.
 
+- **PUT** `/api/1/manager/invitations` (тот же путь, что и POST списка/создания; Bronevik в JSON) — **пакетное** обновление `data`: кроме `token` и `u_hash` каждый ключ — **строковый числовой id** приглашения (`"12"`, `"13"`), значение — объект **`{"data": ...}`** (как в одиночном PUT). Опциональный `team_id` игнорируется. Ответ: `{"status":"success","data":{"results":[...]}}` — по каждому id либо `invitation`, либо `error: not_found`. Некорректное тело (нет ни одного id, нечисловой ключ, нет вложенного `data`) — `400`.
+
 - **POST** `/api/0/gfps/invitations/claim` (без Bronevik)
   - Тело: только **`token`** и **`uuid`**. Поле **`username` не задаётся** при claim (в БД остаётся пустой строкой); смена — через **`PUT /api/0/user`** (сотрудник) или **`PUT /api/1/manager/users/<id>`** (менеджер).
   - Успех: `status: "success"`, объекты `user` и `invitation`. У пользователя из инвайта подставляются `firstName`, `lastName`, `middleName`, `email`.
