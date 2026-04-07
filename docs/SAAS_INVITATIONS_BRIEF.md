@@ -7,8 +7,7 @@
 | Кто | Метод | Назначение |
 |-----|--------|------------|
 | Менеджер | `POST /api/1/manager/invitations` | Список или создание (один URL, разное тело). В JSON всегда Bronevik: `token` + `u_hash`. |
-| Менеджер | `PUT /api/1/manager/invitations/<id>` | Заменить JSON в поле `data` у **одной** строки. Bronevik в теле. |
-| Менеджер | `PUT /api/1/manager/invitations` | Пакетно: в теле `token`, `u_hash` и пары `"<id>": {"data": ...}` для нескольких приглашений сразу. |
+| Менеджер | `PUT /api/1/manager/invitations` | Обновить `data`: `token`, `u_hash` и пары `"<id>": {"data": ...}` (одна строка или несколько). |
 | Сотрудник | `POST /api/0/gfps/invitations/claim` | Активация: секретный `token` инвайта + стабильный `uuid` устройства. |
 
 **Заголовки:** `Content-Type: application/json`, корректный `Host`; в проде — HTTPS.
@@ -116,36 +115,20 @@
 
 Тот же каркас: `status`, `data.invitations[]`. У созданных строк будет `token` (Base58); тот же секрет затем отдаётся в списке.
 
-### Обновление `data` у строки — `PUT /api/1/manager/invitations/<id>`
+### Обновление `data` — `PUT /api/1/manager/invitations`
 
-Тело: `token`, `u_hash`, **`data`** (объект или `null` для очистки). Вся ранее сохранённая JSON-заметка **заменяется** целиком.
-
-```json
-{
-  "token": "<bronevik_api_token>",
-  "u_hash": "<bronevik_u_hash>",
-  "data": { "emailSent": true, "sentAt": "2026-04-05T15:00:00Z" }
-}
-```
-
-Успех: `{"status":"success","data":{"invitation":{ ... } }}` — в `invitation` полный объект строки, включая `data`.
-
-Ключ **`data` обязателен** (может быть `null`). Без ключа — `400`, нет строки с таким `id` — `404`.
-
-### Пакетное обновление `data` — `PUT /api/1/manager/invitations`
-
-Тело: **`token`**, **`u_hash`**, затем для каждого приглашения ключ — **строка с числовым id** (в JSON это `"12"`), значение — **`{"data": ...}`**. Поле **`team_id`**, если передано, **игнорируется**.
+Тело: **`token`**, **`u_hash`**, затем для каждой строки приглашения ключ — **строка с числовым id** (`"12"`), значение — **`{"data": ...}`** (объект или `null` для очистки; заменяет целиком). Можно передать **один** id или **несколько**. Поле **`team_id`**, если передано, **игнорируется**.
 
 ```json
 {
   "token": "<bronevik_api_token>",
   "u_hash": "<bronevik_u_hash>",
-  "12": { "data": { "emailSent": true } },
+  "12": { "data": { "emailSent": true, "sentAt": "2026-04-05T15:00:00Z" } },
   "13": { "data": { "emailSent": false } }
 }
 ```
 
-Ответ `200`: `data.results[]` — по каждому id либо `{ "id", "invitation" }`, либо `{ "id", "error": "not_found" }`. Неверное тело (нет ни одного id, нечисловой ключ, нет вложенного `data`) — **400**.
+Ответ `200`: `data.results[]` — по каждому id либо `{ "id", "invitation" }`, либо `{ "id", "error": "not_found" }`. Неверное тело — **400**.
 
 ### Ошибка авторизации (пример)
 

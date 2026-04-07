@@ -615,30 +615,6 @@ class ServerAPI:
         rows = self.db.list_invitations(team_id)
         return {"status": "success", "data": {"invitations": rows}}
 
-    def manager_update_invitation(
-        self,
-        invitation_id: int,
-        body: Dict[str, Any],
-        token: str,
-        u_hash: str,
-    ) -> Dict[str, Any]:
-        if not self.bronevik_auth_logic(token, u_hash):
-            return {"status": "error", "message": "unauthorized access"}
-        if "data" not in body:
-            return {
-                "status": "error",
-                "message": "data field required",
-                "error": "validation",
-            }
-        row = self.db.update_invitation_data(invitation_id, body["data"])
-        if row is None:
-            return {
-                "status": "error",
-                "message": "invitation not found",
-                "error": "not_found",
-            }
-        return {"status": "success", "data": {"invitation": row}}
-
     def manager_update_invitations_data_batch(
         self,
         body: Dict[str, Any],

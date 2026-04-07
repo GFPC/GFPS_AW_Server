@@ -348,52 +348,30 @@ def test_invitation_data_create_list_put_clear(http_client, bronevik_cached_sess
     r_put = _json(
         http_client,
         "put",
-        f"/api/1/manager/invitations/{inv_id}",
+        MANAGER_INVITATIONS,
         json={
             "token": token_b,
             "u_hash": u_hash_b,
-            "data": {"emailSent": True},
+            str(inv_id): {"data": {"emailSent": True}},
         },
     )
     assert r_put.status_code == 200
-    assert r_put.get_json()["data"]["invitation"]["data"] == {"emailSent": True}
+    res = r_put.get_json()["data"]["results"]
+    assert len(res) == 1
+    assert res[0]["invitation"]["data"] == {"emailSent": True}
 
     r_clear = _json(
         http_client,
         "put",
-        f"/api/1/manager/invitations/{inv_id}",
+        MANAGER_INVITATIONS,
         json={
             "token": token_b,
             "u_hash": u_hash_b,
-            "data": None,
+            str(inv_id): {"data": None},
         },
     )
     assert r_clear.status_code == 200
-    assert r_clear.get_json()["data"]["invitation"]["data"] == {}
-
-
-def test_invitation_put_requires_data_key(http_client, bronevik_cached_session):
-    token_b, u_hash_b = bronevik_cached_session
-    r = _json(
-        http_client,
-        "put",
-        "/api/1/manager/invitations/999999999",
-        json={"token": token_b, "u_hash": u_hash_b},
-    )
-    assert r.status_code == 400
-    assert r.get_json().get("error") == "validation"
-
-
-def test_invitation_put_not_found(http_client, bronevik_cached_session):
-    token_b, u_hash_b = bronevik_cached_session
-    r = _json(
-        http_client,
-        "put",
-        "/api/1/manager/invitations/999999999",
-        json={"token": token_b, "u_hash": u_hash_b, "data": {}},
-    )
-    assert r.status_code == 404
-    assert r.get_json().get("error") == "not_found"
+    assert r_clear.get_json()["data"]["results"][0]["invitation"]["data"] == {}
 
 
 def test_invitation_batch_put_data(http_client, bronevik_cached_session):
