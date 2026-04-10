@@ -8,6 +8,11 @@ from typing import Any, Dict, List, Optional, Set, Union
 import iso8601
 
 
+def utc_now_naive() -> datetime:
+    """UTC instant as naive datetime for MySQL DATETIME (avoid ``datetime.now()`` = server local)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
@@ -589,7 +594,7 @@ class InvitationModel(BaseModel):
     installed = BooleanField(default=False)
     installed_at = DateTimeField(null=True)
     user = ForeignKeyField(UserModel, field="id", null=True, backref="invitations")
-    created = DateTimeField(default=datetime.now)
+    created = DateTimeField(default=utc_now_naive)
     data = TextField(null=True)
 
     def json(self) -> Dict[str, Any]:
@@ -610,6 +615,7 @@ class InvitationModel(BaseModel):
             if isinstance(c, str):
                 created_str = iso8601.parse_date(c).astimezone(timezone.utc).isoformat()
             else:
+                # Naive values are stored as UTC (see utc_now_naive); do not use server local.
                 if c.tzinfo is None:
                     c = c.replace(tzinfo=timezone.utc)
                 else:
