@@ -459,6 +459,29 @@ class ServerAPI:
 
         return buckets
 
+    @staticmethod
+    def _bucket_owner_user_id(meta: Dict[str, Any]) -> Optional[int]:
+        """Resolve bucket metadata ``user`` to numeric id (FK object, int, or missing)."""
+        u = meta.get("user")
+        if u is None:
+            return None
+        if isinstance(u, int):
+            return u
+        uid = getattr(u, "id", None)
+        if uid is not None:
+            try:
+                return int(uid)
+            except (TypeError, ValueError):
+                return None
+        if hasattr(u, "json") and callable(getattr(u, "json", None)):
+            try:
+                jid = u.json().get("id")
+                if jid is not None:
+                    return int(jid)
+            except (TypeError, ValueError, AttributeError, KeyError):
+                return None
+        return None
+
     def get_buckets_v2(self, users, token, u_hash):
         if not self.bronevik_auth_logic(token, u_hash):
             return {"status": "error", "message": "unauthorized access"}
@@ -478,16 +501,18 @@ class ServerAPI:
             buckets = self.db.get_buckets_for_users(users)
         else:
             return {"status": "error", "message": "users must be a list or 'all'"}
-        new_struct = {}
-        for i in users:
-            new_struct[i] = {}
-            for b in buckets:
-                if not type(buckets[b]['user']) == int:
-                    buckets[b]['user'] = buckets[b]['user'].json()['id']
-                if buckets[b]['user'] == i:
-                    new_struct[i][b] = buckets[b]
-                    new_struct[i][b].pop('user')
-                    new_struct[i][b].pop('hash_key')
+
+        user_set = set(users)
+        new_struct: Dict[int, Dict[str, Any]] = {i: {} for i in users}
+
+        for b, meta in buckets.items():
+            owner_id = self._bucket_owner_user_id(meta)
+            if owner_id is None or owner_id not in user_set:
+                continue
+            # Copy so we do not mutate shared bucket dicts (popping user/hash_key twice used to KeyError).
+            entry = {k: v for k, v in meta.items() if k not in ("user", "hash_key")}
+            new_struct[owner_id][b] = entry
+
         return {"status": "success", "data": {"buckets": new_struct}}
 
     def get_events_for_buckets(self, buckets, limit, start, end, token, u_hash):
